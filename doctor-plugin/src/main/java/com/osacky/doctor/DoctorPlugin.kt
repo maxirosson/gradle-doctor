@@ -28,11 +28,13 @@ import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 
 class DoctorPlugin : Plugin<Project> {
 
+    private lateinit var extension: DoctorExtension
+
     override fun apply(target: Project) {
         ensureMinimumSupportedGradleVersion()
         ensureAppliedInProjectRoot(target)
 
-        val extension = target.extensions.create<DoctorExtension>("doctor")
+        extension = target.extensions.create<DoctorExtension>("doctor")
 
         val clock: Clock = SystemClock()
         val intervalMeasurer = IntervalMeasurer()
@@ -133,6 +135,11 @@ class DoctorPlugin : Plugin<Project> {
     ) {
         val runnable = Runnable {
             val thingsToPrint: List<String> = list.flatMap {
+
+                if (it is SlowerFromCacheCollector) {
+                    it.slowerFromCacheCallback = extension.slowerFromCacheCallback
+                }
+
                 val messages = it.onFinish()
                 if (messages.isNotEmpty() && it is HasBuildScanTag) {
                     it.addCustomValues(buildScanApi)
@@ -176,13 +183,12 @@ class DoctorPlugin : Plugin<Project> {
         return if (target.gradle.shouldUseCoCaClasses()) {
             val listenerService = target.gradle.sharedServices.registerIfAbsent("listener-service", BuildOperationListenerService::class.java) {
                 this.parameters.getNegativeAvoidanceThreshold().set(extension.negativeAvoidanceThreshold)
-                this.parameters.getSlowerFromCacheCallback().set(extension.slowerFromCacheCallback)
             }
             val buildEventListenerRegistry: BuildEventListenerRegistryInternal = target.serviceOf()
             buildEventListenerRegistry.onOperationCompletion(listenerService)
             listenerService.get().getOperations()
         } else {
-            val ops = BuildOperations(extension.negativeAvoidanceThreshold, extension.slowerFromCacheCallback)
+            val ops = BuildOperations(extension.negativeAvoidanceThreshold)
             target.gradle.buildOperationListenerManager.addListener(ops)
             ops
         }

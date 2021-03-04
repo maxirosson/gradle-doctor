@@ -67,7 +67,7 @@ open class DoctorExtension(objects: ObjectFactory) {
         action.execute(javaHomeHandler)
     }
 
-    val slowerFromCacheCallback = objects.property<SlowerFromCacheCallback?>().convention(null)
+    var slowerFromCacheCallback: SlowerFromCacheCallback? = null
 }
 
 interface SlowerFromCacheCallback {
